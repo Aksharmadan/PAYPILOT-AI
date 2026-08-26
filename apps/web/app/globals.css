@@ -1,0 +1,214 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --base-0: 0 0% 100%;
+  --base-50: 220 33% 98%;
+  --base-100: 0 0% 100%;
+  --base-200: 220 18% 94%;
+  --base-300: 220 14% 88%;
+  --base-border: 220 14% 87%;
+  --ink-0: 224 26% 10%;
+  --ink-100: 224 14% 24%;
+  --ink-300: 224 9% 44%;
+  --ink-500: 224 7% 61%;
+}
+
+.dark {
+  --base-0: 220 16% 4%;
+  --base-50: 225 14% 6%;
+  --base-100: 225 12% 8%;
+  --base-200: 225 10% 11%;
+  --base-300: 225 8% 15%;
+  --base-border: 225 7% 17%;
+  --ink-0: 240 10% 97%;
+  --ink-100: 240 6% 80%;
+  --ink-300: 240 4% 55%;
+  --ink-500: 240 4% 37%;
+}
+
+::selection {
+  background: rgba(34, 192, 138, 0.25);
+  color: hsl(var(--ink-0));
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #26272b;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #34363b;
+}
+
+body {
+  background:
+    linear-gradient(180deg, hsl(var(--base-50)), hsl(var(--base-0))),
+    hsl(var(--base-50));
+  font-feature-settings: "cv11", "ss01";
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-grid {
+  background-image:
+    linear-gradient(hsl(var(--base-border) / 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--base-border) / 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+}
+
+.animate-enter {
+  animation: enter 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-rise {
+  animation: rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-dash {
+  to {
+    stroke-dashoffset: -500;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes thinking-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+/* Restrained card elevation — Linear/Vercel-style top-edge highlight */
+.card-surface {
+  background: hsl(var(--base-100));
+  border: 1px solid hsl(var(--base-border));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-interactive:hover {
+  transform: scale(1.01);
+  border-color: hsl(var(--base-border) / 0.9);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.card-glow-jade:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(34, 192, 138, 0.12),
+    0 0 28px rgba(34, 192, 138, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.card-glow-coral:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(240, 85, 76, 0.14),
+    0 0 28px rgba(240, 85, 76, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.card-glow-amber:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(232, 162, 61, 0.14),
+    0 0 28px rgba(232, 162, 61, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.table-shell {
+  background: hsl(var(--base-100));
+  border: 1px solid hsl(var(--base-border));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.table-row {
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.table-row:hover {
+  background: hsl(var(--base-50));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  transform: translateY(-1px);
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--base-200)) 0%,
+    hsl(var(--base-300) / 0.55) 50%,
+    hsl(var(--base-200)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter,
+  .animate-rise,
+  .skeleton-shimmer {
+    animation: none !important;
+  }
+
+  .card-interactive:hover,
+  .table-row:hover {
+    transform: none;
+  }
+}
