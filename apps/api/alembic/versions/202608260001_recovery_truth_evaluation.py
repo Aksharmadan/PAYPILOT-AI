@@ -15,18 +15,18 @@ depends_on = None
 
 
 def upgrade():
-    dataset_split = postgresql.ENUM("train", "heldout", name="datasetsplit")
-    opportunity_source = postgresql.ENUM("payment", "checkout", "subscription", name="opportunitysource")
-    opportunity_priority = postgresql.ENUM("critical", "high", "medium", "low", name="opportunitypriority")
-    opportunity_confidence = postgresql.ENUM("high", "medium", "low", name="opportunityconfidence")
+    dataset_split = postgresql.ENUM("train", "heldout", name="datasetsplit", create_type=False)
+    opportunity_source = postgresql.ENUM("payment", "checkout", "subscription", name="opportunitysource", create_type=False)
+    opportunity_priority = postgresql.ENUM("critical", "high", "medium", "low", name="opportunitypriority", create_type=False)
+    opportunity_confidence = postgresql.ENUM("high", "medium", "low", name="opportunityconfidence", create_type=False)
     intervention_type = postgresql.ENUM(
         "payment_retry", "delayed_retry", "payment_method_update",
         "checkout_recovery_message", "personalized_offer", "subscription_recovery",
-        "escalation", "no_action", name="interventiontype"
+        "escalation", "no_action", name="interventiontype", create_type=False
     )
-    policy_status = postgresql.ENUM("auto", "approval_required", "escalated", "blocked", name="policystatus")
-    action_status = postgresql.ENUM("open", "approved", "rejected", "executing", "completed", "failed", name="actionstatus")
-    opportunity_outcome = postgresql.ENUM("pending", "recovered", "not_recovered", "no_action", name="opportunityoutcome")
+    policy_status = postgresql.ENUM("auto", "approval_required", "escalated", "blocked", name="policystatus", create_type=False)
+    action_status = postgresql.ENUM("open", "approved", "rejected", "executing", "completed", "failed", name="actionstatus", create_type=False)
+    opportunity_outcome = postgresql.ENUM("pending", "recovered", "not_recovered", "no_action", name="opportunityoutcome", create_type=False)
 
     bind = op.get_bind()
     for enum in (
