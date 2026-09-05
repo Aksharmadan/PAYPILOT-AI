@@ -1,0 +1,137 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Outer glow gradient for the P -->
+    <radialGradient id="glowBg" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#7B5FFF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0D0B1E" stop-opacity="0"/>
+    </radialGradient>
+    <!-- P stroke gradient: purple top → cyan bottom -->
+    <linearGradient id="pGrad" x1="60" y1="20" x2="130" y2="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C084FC"/>
+      <stop offset="40%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <!-- Inner ribbon gradient -->
+    <linearGradient id="ribbonGrad" x1="55" y1="60" x2="125" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A78BFA" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#60A5FA" stop-opacity="0.9"/>
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="outerGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background glow orb -->
+  <ellipse cx="105" cy="85" rx="65" ry="60" fill="url(#glowBg)"/>
+
+  <!-- Speed lines (left of P) -->
+  <g filter="url(#glow)" opacity="0.85">
+    <line x1="28" y1="78" x2="60" y2="78" stroke="url(#pGrad)" stroke-width="4" stroke-linecap="round"/>
+    <line x1="22" y1="92" x2="56" y2="92" stroke="url(#pGrad)" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+    <line x1="28" y1="105" x2="58" y2="105" stroke="url(#pGrad)" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  </g>
+
+  <!-- The P letterform — thick outline path -->
+  <path
+    d="M 68 165 L 68 25
+       Q 68 20 73 20
+       L 118 20
+       Q 150 20 162 42
+       Q 172 60 162 82
+       Q 152 102 120 108
+       L 88 110
+       L 88 165
+       Q 88 170 83 170
+       L 73 170
+       Q 68 170 68 165 Z
+       M 88 40 L 88 92
+       L 115 90
+       Q 140 88 144 74
+       Q 148 60 136 50
+       Q 126 42 108 40 Z"
+    fill="none"
+    stroke="url(#pGrad)"
+    stroke-width="2"
+    filter="url(#outerGlow)"
+    opacity="0.4"
+  />
+
+  <!-- P body — filled ribbon shape -->
+  <path
+    d="M 72 160 L 72 28
+       Q 72 24 76 24
+       L 116 24
+       Q 148 24 160 46
+       Q 170 64 160 84
+       Q 150 104 118 110
+       L 92 112
+       L 92 160
+       Q 92 165 87 165
+       L 77 165
+       Q 72 165 72 160 Z"
+    fill="url(#pGrad)"
+    opacity="0.15"
+  />
+
+  <!-- P outline stroke -->
+  <path
+    d="M 72 160 L 72 28
+       Q 72 24 76 24
+       L 116 24
+       Q 148 24 160 46
+       Q 170 64 160 84
+       Q 150 104 118 110
+       L 92 112
+       L 92 160"
+    fill="none"
+    stroke="url(#pGrad)"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"
+  />
+
+  <!-- Inner bowl of the P (cutout effect) -->
+  <path
+    d="M 92 42 L 92 92
+       Q 115 94 128 88
+       Q 144 80 142 66
+       Q 140 52 124 44
+       Q 110 38 92 42 Z"
+    fill="#0D0B1E"
+    opacity="0.85"
+  />
+
+  <!-- Ribbon curl / diagonal slash inside P -->
+  <path
+    d="M 108 108 L 82 155"
+    stroke="url(#ribbonGrad)"
+    stroke-width="9"
+    stroke-linecap="round"
+    opacity="0.85"
+    filter="url(#glow)"
+  />
+
+  <!-- Top curve highlight of P -->
+  <path
+    d="M 76 24 Q 148 24 160 64"
+    fill="none"
+    stroke="#E0D4FF"
+    stroke-width="3"
+    stroke-linecap="round"
+    opacity="0.55"
+    filter="url(#glow)"
+  />
+</svg>
