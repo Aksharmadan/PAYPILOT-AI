@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: paypilot-api
+    runtime: python
+    rootDir: apps/api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Set manually in Render dashboard — Supabase connection string
+      - key: SECRET_KEY
+        generateValue: true  # Render auto-generates a secure random value
+      - key: CORS_ORIGINS
+        sync: false          # Set to your Vercel URL e.g. https://paypilot-ai.vercel.app
+      - key: GROQ_API_KEY
+        sync: false          # Set manually — get from https://console.groq.com
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"        # 24 hours
+      - key: ALGORITHM
+        value: "HS256"
+    healthCheckPath: /health
