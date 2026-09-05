@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 
 export function RiskGauge({ score, label = "Revenue Health" }: { score: number; label?: string }) {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(score);
 
   useEffect(() => {
-    const t = setTimeout(() => setProgress(score), 200);
-    return () => clearTimeout(t);
+    // Re-animate if score changes dynamically
+    setProgress(score);
   }, [score]);
 
   const circumference = Math.PI * 80;

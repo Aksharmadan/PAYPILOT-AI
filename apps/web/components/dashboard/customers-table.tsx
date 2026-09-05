@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, ArrowUpDown, Users, ArrowRight } from "lucide-react";
 import { formatINR } from "@/lib/format";
 import type { Customer } from "@/lib/api";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,6 +12,7 @@ import { cn } from "@/lib/utils";
 type SortKey = "name" | "lifetime_value" | "churn_risk_score" | "segment";
 
 export function CustomersTable({ customers }: { customers: Customer[] }) {
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("lifetime_value");
   const [asc, setAsc] = useState(false);
 
@@ -67,13 +70,17 @@ export function CustomersTable({ customers }: { customers: Customer[] }) {
                 align="right"
                 onClick={() => toggle("churn_risk_score")}
               />
+              <th className="px-5 py-3 font-medium text-right" />
             </tr>
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={c.id} className="table-row border-b border-base-border last:border-0">
+              <tr
+                key={c.id}
+                className="table-row border-b border-base-border last:border-0 cursor-pointer group"
+              >
                 <td className="px-5 py-3">
-                  <div className="text-ink-0">{c.name}</div>
+                  <div className="text-ink-0 font-medium">{c.name}</div>
                   <div className="text-xs text-ink-300">{c.email}</div>
                 </td>
                 <td className="px-5 py-3">
@@ -90,6 +97,16 @@ export function CustomersTable({ customers }: { customers: Customer[] }) {
                   <span className={c.churn_risk_score > 0.6 ? "text-coral-400" : "text-ink-100"}>
                     {(c.churn_risk_score * 100).toFixed(0)}%
                   </span>
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <Link
+                    href={`/customers/${c.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-violet-400 opacity-0 group-hover:opacity-100 hover:text-violet-300 transition-all"
+                  >
+                    360 View
+                    <ArrowRight size={11} />
+                  </Link>
                 </td>
               </tr>
             ))}

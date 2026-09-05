@@ -87,6 +87,55 @@ class RevenueSummaryOut(BaseModel):
     period_days: int
 
 
+class DashboardOpportunityCard(BaseModel):
+    id: uuid.UUID
+    title: str
+    source: str
+    amount_at_risk: float
+    recovery_probability: float
+    expected_recovery_value: float
+    confidence: str
+    recommended_intervention: str
+    href: str
+
+
+class DashboardBriefingOut(BaseModel):
+    headline: str
+    insights: list[str]
+
+
+class DashboardSummaryOut(BaseModel):
+    period_days: int
+    revenue_period: float
+    previous_revenue_period: float
+    revenue_delta_pct: Optional[float] = None
+    revenue_health_score: int
+    revenue_at_risk: float
+    by_source: list[RevenueAtRiskSource]
+    expected_recovery: float
+    high_confidence_recoverable: float
+    recovered_period: float
+    recovery_rate: Optional[float] = None
+    active_opportunities: int
+    top_opportunities: list[DashboardOpportunityCard]
+    briefing: DashboardBriefingOut
+
+
+class SearchHitOut(BaseModel):
+    id: str
+    type: str
+    title: str
+    subtitle: Optional[str] = None
+    href: str
+    meta: Optional[str] = None
+
+
+class SearchResultsOut(BaseModel):
+    query: str
+    total: int
+    items: list[SearchHitOut]
+
+
 class RiskItemOut(BaseModel):
     id: uuid.UUID
     type: str
@@ -167,3 +216,74 @@ class RevenueEventOut(BaseModel):
 
 class PaginatedRevenueEvents(PaginatedResponse):
     items: list[RevenueEventOut]
+
+
+class RevenueLeakOut(BaseModel):
+    title: str
+    impact_amount: float
+    cause: str
+    confidence: str
+    recommended_action: str
+    potential_recovery: float
+
+
+class RecommendationOut(BaseModel):
+    title: str
+    amount_at_risk: float
+    avg_probability: float
+    expected_recovery: float
+    count: int
+
+
+class SimulationIn(BaseModel):
+    max_retries: int = 2
+    auto_max_amount: float = 5000.0
+    min_confidence_for_auto: float = 0.70
+    min_retry_interval_minutes: int = 30
+
+
+class SimulationOut(BaseModel):
+    baseline_expected_recovery: float
+    simulated_expected_recovery: float
+    recovery_delta: float
+    baseline_tiers: dict[str, int]
+    simulated_tiers: dict[str, int]
+
+
+class PolicyIn(BaseModel):
+    max_retry_count: int
+    retry_cooldown_hours: int
+    auto_amount_limit: float
+    approval_amount_limit: float
+    contact_limit_per_customer: int
+    min_confidence_for_auto: float
+
+
+class PolicyOut(BaseModel):
+    max_retry_count: int
+    retry_cooldown_hours: int
+    auto_amount_limit: float
+    approval_amount_limit: float
+    contact_limit_per_customer: int
+    min_confidence_for_auto: float
+
+    class Config:
+        from_attributes = True
+
+
+class RootCauseFactorOut(BaseModel):
+    factor: str
+    change: str
+    impact_direction: str
+    impact_weight: float
+    explanation: str
+    type: str
+
+
+class RootCauseAnalysisOut(BaseModel):
+    days: int
+    revenue_change_pct: float
+    revenue_delta: float
+    factors: list[RootCauseFactorOut]
+    summary_sentence: str
+

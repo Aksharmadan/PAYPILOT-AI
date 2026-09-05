@@ -11,8 +11,10 @@ from app.models.revenue import (
     Payment, PaymentStatus, CheckoutSession, CheckoutStatus,
     Subscription, SubscriptionStatus, RecoveryAttempt, RecoveryStatus,
 )
-from app.schemas.revenue import RevenueSummaryOut, RevenueAtRiskOut, RevenueAtRiskSource
+from app.schemas.revenue import RevenueSummaryOut, RevenueAtRiskOut, RevenueAtRiskSource, RevenueLeakOut, RecommendationOut, RootCauseAnalysisOut
 from app.api.routes.risk import compute_high_confidence_total
+from app.services.leak_detector import detect_leaks
+from app.services.recommendations import get_recommendations
 
 router = APIRouter(prefix="/revenue", tags=["revenue"])
 
@@ -121,3 +123,58 @@ def revenue_summary(
         recovered_period=round(recovered_period, 2),
         period_days=days,
     )
+
+
+@router.get("/leaks", response_model=list[RevenueLeakOut])
+def get_revenue_leaks(
+    db: Session = Depends(get_db),
+    _: Merchant = Depends(get_current_merchant),
+):
+    return detect_leaks(db)
+
+
+@router.get("/recommendations", response_model=list[RecommendationOut])
+def get_revenue_recommendations(
+    db: Session = Depends(get_db),
+    _: Merchant = Depends(get_current_merchant),
+):
+    return get_recommendations(db)
+
+
+@router.get("/root-cause", response_model=RootCauseAnalysisOut)
+def get_revenue_root_cause(
+    days: int = Query(30, ge=7, le=180),
+    db: Session = Depends(get_db),
+    _: Merchant = Depends(get_current_merchant),
+):
+    from app.services.root_cause import analyze_root_cause
+    return analyze_root_cause(db, days)
+
+
+@router.get("/churn-radar")
+def get_churn_radar_view(
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: Merchant = Depends(get_current_merchant),
+):
+    from app.services.radar import get_churn_radar
+    return get_churn_radar(db, limit)
+
+
+@router.get("/renewal-radar")
+def get_renewal_radar_view(
+    days: int = Query(30, ge=7, le=90),
+    db: Session = Depends(get_db),
+    _: Merchant = Depends(get_current_merchant),
+):
+    from app.services.radar import get_renewal_radar
+    return get_renewal_radar(db, days)
+
+
+@router.get("/impact-summary")
+def get_impact_summary(
+    db: Session = Depends(get_db),
+    _: Merchant = Depends(get_current_merchant),
+):
+    from app.services.impact import get_business_impact
+    return get_business_impact(db)

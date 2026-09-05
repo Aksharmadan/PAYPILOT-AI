@@ -1,21 +1,60 @@
-const STATUS_STYLES: Record<string, string> = {
-  succeeded: "bg-jade-500/10 text-jade-400 border-jade-500/20",
-  active: "bg-jade-500/10 text-jade-400 border-jade-500/20",
-  failed: "bg-coral-500/10 text-coral-400 border-coral-500/20",
-  canceled: "bg-coral-500/10 text-coral-400 border-coral-500/20",
-  past_due: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  trialing: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  high: "bg-jade-500/10 text-jade-400 border-jade-500/20",
-  medium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  low: "bg-coral-500/10 text-coral-400 border-coral-500/20",
+/* Premium status badge — maps status strings to the badge design system */
+
+const STATUS_BADGE: Record<string, string> = {
+  /* Payment statuses */
+  succeeded:     "badge-jade",
+  success:       "badge-jade",
+  completed:     "badge-jade",
+  recovered:     "badge-jade",
+  active:        "badge-jade",
+  approved:      "badge-jade",
+  high:          "badge-jade",
+  /* Warning / pending */
+  pending:       "badge-amber",
+  executing:     "badge-amber",
+  past_due:      "badge-amber",
+  trialing:      "badge-amber",
+  medium:        "badge-amber",
+  approval_required: "badge-amber",
+  escalated:     "badge-amber",
+  queued:        "badge-amber",
+  /* Error */
+  failed:        "badge-coral",
+  canceled:      "badge-coral",
+  rejected:      "badge-coral",
+  blocked:       "badge-coral",
+  low:           "badge-coral",
+  /* Neutral */
+  draft:         "badge-neutral",
+  open:          "badge-neutral",
+  unknown:       "badge-neutral",
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] ?? "bg-ink-500/10 text-ink-300 border-ink-500/20";
+export function StatusBadge({ status, className = "" }: { status: string; className?: string }) {
+  const badge = STATUS_BADGE[status?.toLowerCase()] ?? "badge-neutral";
+  const label = status?.replaceAll("_", " ") ?? "—";
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${style}`}>
-      {status.replace("_", " ")}
+    <span className={`${badge} text-2xs font-mono font-bold px-2 py-0.5 rounded-md capitalize inline-flex items-center ${className}`}>
+      {label}
     </span>
   );
+}
+
+/* Dot-only variant — for compact inline use */
+export function StatusDot({ status }: { status: string }) {
+  const COLOR: Record<string, string> = {
+    succeeded: "bg-jade-400 shadow-[0_0_5px_rgba(34,232,160,0.6)]",
+    success:   "bg-jade-400 shadow-[0_0_5px_rgba(34,232,160,0.6)]",
+    active:    "bg-jade-400 shadow-[0_0_5px_rgba(34,232,160,0.6)]",
+    completed: "bg-jade-400",
+    recovered: "bg-jade-400",
+    pending:   "bg-amber-500",
+    executing: "bg-amber-500",
+    past_due:  "bg-amber-500",
+    failed:    "bg-coral-500",
+    canceled:  "bg-coral-500",
+    rejected:  "bg-coral-500",
+  };
+  const cls = COLOR[status?.toLowerCase()] ?? "bg-ink-500";
+  return <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${cls}`}/>;
 }

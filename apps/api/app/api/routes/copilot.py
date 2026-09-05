@@ -6,6 +6,7 @@ from groq import Groq
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_merchant
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.merchant import Merchant
 from app.schemas.revenue import CopilotMessageIn, CopilotMessageOut
@@ -29,7 +30,7 @@ def chat(
     db: Session = Depends(get_db),
     _: Merchant = Depends(get_current_merchant),
 ):
-    api_key = os.environ.get("GROQ_API_KEY")
+    api_key = settings.GROQ_API_KEY
     if not api_key or api_key == "your-key-here":
         raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured in apps/api/.env")
 
@@ -42,7 +43,7 @@ def chat(
 
     for _ in range(5):  # cap tool-call rounds to avoid runaway loops
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-20b",
             messages=messages,
             tools=TOOLS,
             max_tokens=1024,

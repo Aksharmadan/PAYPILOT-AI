@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, health, customers, payments, subscriptions, risk, copilot, opportunities, evaluation, audit, experiments
+from app.api.routes import auth, health, customers, payments, subscriptions, risk, copilot, opportunities, evaluation, audit, experiments, dashboard, search, simulation, policy, demo
 from app.api.routes import revenue as revenue_routes
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
@@ -31,6 +31,12 @@ app.include_router(evaluation.router)
 app.include_router(audit.router)
 app.include_router(experiments.router)
 app.include_router(revenue_routes.router)
+app.include_router(dashboard.router)
+app.include_router(search.router)
+app.include_router(simulation.router)
+app.include_router(policy.router)
+app.include_router(demo.router)
+
 
 
 @app.on_event("startup")

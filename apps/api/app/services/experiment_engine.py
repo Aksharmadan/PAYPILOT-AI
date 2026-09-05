@@ -229,18 +229,21 @@ def compute_results(db: Session, experiment: Experiment) -> dict:
         .all()
     )
 
+    opp_ids = {a.opportunity_id for a in assignments if a.opportunity_id}
+    opps = {}
+    attempts = {}
+    if opp_ids:
+        opps = {o.id: o for o in db.query(RecoveryOpportunity).filter(RecoveryOpportunity.id.in_(opp_ids)).all()}
+        attempts = {att.opportunity_id: att for att in db.query(RecoveryAttempt).filter(RecoveryAttempt.opportunity_id.in_(opp_ids)).all()}
+
     def arm_stats(group: ExperimentGroup) -> dict:
         rows = [a for a in assignments if a.group == group]
         recovered = 0
         recovered_amount = 0.0
         amount_at_risk = 0.0
         for a in rows:
-            opp = db.query(RecoveryOpportunity).filter(RecoveryOpportunity.id == a.opportunity_id).first()
-            attempt = (
-                db.query(RecoveryAttempt)
-                .filter(RecoveryAttempt.opportunity_id == a.opportunity_id)
-                .first()
-            )
+            opp = opps.get(a.opportunity_id)
+            attempt = attempts.get(a.opportunity_id)
             if opp:
                 amount_at_risk += opp.amount_at_risk or 0.0
             if attempt and attempt.status == RecoveryStatus.succeeded:

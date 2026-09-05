@@ -69,7 +69,7 @@ def list_opportunities(
     db: Session = Depends(get_db),
     _: Merchant = Depends(get_current_merchant),
 ):
-    refresh_opportunities(db)
+    # Refresh is expensive — only via POST /opportunities/refresh, not on every list.
     query = db.query(RecoveryOpportunity)
     if source:
         query = query.filter(RecoveryOpportunity.source == source)
@@ -145,7 +145,15 @@ def execute(
     opp = db.query(RecoveryOpportunity).filter(RecoveryOpportunity.id == opportunity_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-    opp = execute_opportunity(db, opp)
+    try:
+        opp = execute_opportunity(db, opp)
+    except ValueError as exc:
+        if str(exc) == "approval_required":
+            raise HTTPException(
+                status_code=409,
+                detail="This opportunity requires approval before execution.",
+            ) from exc
+        raise
     customers = _customers_for(db, [opp])
     return serialize_opportunity(opp, customers.get(opp.customer_id))
 
@@ -162,6 +170,7 @@ def simulate(
     opp = db.query(RecoveryOpportunity).filter(RecoveryOpportunity.id == opportunity_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
+    # Simulation is a demo evaluation path — force_outcome bypasses approval gate.
     opp = execute_opportunity(db, opp, force_outcome=payload.outcome)
     customers = _customers_for(db, [opp])
     return serialize_opportunity(opp, customers.get(opp.customer_id))

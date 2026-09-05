@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, RefreshCw } from "lucide-react";
 import { formatINR } from "@/lib/format";
 import { StatusBadge } from "./status-badge";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 type SortKey = "mrr" | "current_period_end" | "status" | "plan_name";
 
 export function SubscriptionsTable({ subscriptions }: { subscriptions: Subscription[] }) {
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("mrr");
   const [asc, setAsc] = useState(false);
 
@@ -66,8 +68,9 @@ export function SubscriptionsTable({ subscriptions }: { subscriptions: Subscript
             {rows.map((s) => (
               <tr
                 key={s.id}
+                onClick={() => router.push(`?drawerType=subscription&drawerId=${s.id}`)}
                 className={cn(
-                  "table-row border-b border-base-border last:border-0",
+                  "table-row border-b border-base-border last:border-0 cursor-pointer",
                   s.status === "past_due" && "hover:shadow-[0_0_24px_rgba(240,85,76,0.06)]"
                 )}
               >

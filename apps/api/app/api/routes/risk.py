@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_merchant
@@ -7,6 +8,7 @@ from app.models.merchant import Merchant
 from app.models.revenue import (
     Payment, PaymentStatus, CheckoutSession, CheckoutStatus, Customer,
     RecoveryAttempt, RecoveryStatus,
+    RecoveryOpportunity, OpportunityConfidence, ActionStatus, OpportunityOutcome,
 )
 from app.schemas.revenue import RiskDistributionOut, RiskItemOut
 from app.services.risk_scoring import score_payment, score_checkout, classify
@@ -27,10 +29,21 @@ def _customer_ids_with_prior_recovery_success(db: Session):
 
 
 def compute_high_confidence_total(db: Session, limit: int = 500) -> float:
-    """Shared by /risk/distribution and /revenue/summary so both report the same number."""
+    """Prefer scored opportunities table (indexed) over re-scoring all failed payments."""
+    open_statuses = (ActionStatus.open, ActionStatus.approved, ActionStatus.executing)
+    total = (
+        db.query(func.coalesce(func.sum(RecoveryOpportunity.expected_recovery_value), 0.0))
+        .filter(RecoveryOpportunity.confidence == OpportunityConfidence.high)
+        .filter(RecoveryOpportunity.outcome == OpportunityOutcome.pending)
+        .filter(RecoveryOpportunity.action_status.in_(open_statuses))
+        .scalar()
+    )
+    if total and total > 0:
+        return round(float(total), 2)
+
+    # Fallback when opportunities have not been refreshed yet.
     customers_by_id = {c.id: c for c in db.query(Customer).all()}
     prior_success = _customer_ids_with_prior_recovery_success(db)
-
     failed_payments = (
         db.query(Payment).filter(Payment.status == PaymentStatus.failed)
         .order_by(Payment.created_at.desc()).limit(limit).all()
@@ -39,15 +52,15 @@ def compute_high_confidence_total(db: Session, limit: int = 500) -> float:
         db.query(CheckoutSession).filter(CheckoutSession.status == CheckoutStatus.abandoned)
         .order_by(CheckoutSession.started_at.desc()).limit(limit).all()
     )
-    total = 0.0
+    fallback = 0.0
     for p in failed_payments:
         score = score_payment(p, customers_by_id.get(p.customer_id), p.customer_id in prior_success)
         if classify(score) == "high":
-            total += p.amount
+            fallback += p.amount
     for c in abandoned_checkouts:
         if classify(score_checkout(c)) == "high":
-            total += c.amount
-    return round(total, 2)
+            fallback += c.amount
+    return round(fallback, 2)
 
 
 @router.get("/distribution", response_model=RiskDistributionOut)

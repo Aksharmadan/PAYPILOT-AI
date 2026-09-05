@@ -17,6 +17,10 @@ from app.models.revenue import (
     DatasetSplit, GroundTruthScenario, PolicyStatus, InterventionType,
     RecoveryOpportunity, RevenueEvent,
 )
+from app.models.audit import AuditDecision
+from app.models.experiment import Experiment, ExperimentAssignment
+from app.models.policy import MerchantPolicy
+from app.models.merchant import Merchant
 
 fake = Faker("en_IN")
 Faker.seed(42)
@@ -107,7 +111,14 @@ def make_subscription(customer_id, customer_created_at):
         if canceled_at > NOW:
             canceled_at = NOW
 
-    period_end = (canceled_at or NOW) + timedelta(days=random.randint(1, 30))
+    # For past_due subscriptions, current_period_end must be in the past so
+    # that days_past_due > 0 in the recovery scoring formula. A future
+    # period_end would make the subscription look current, causing the scorer
+    # to return days_past_due=0 and assign incorrect (too-high) recovery probability.
+    if status == SubscriptionStatus.past_due:
+        period_end = NOW - timedelta(days=random.randint(1, 30))
+    else:
+        period_end = (canceled_at or NOW) + timedelta(days=random.randint(1, 30))
 
     return {
         "id": uuid.uuid4(),
@@ -238,14 +249,36 @@ def scenario_split(index):
 
 def make_scenario_customer(index, churn, ltv=0.0, days_back=120):
     created = NOW - timedelta(days=days_back)
+    # Add a bit of natural variation so scenario customers don't look identical
+    v_churn = max(0.01, min(0.99, churn + random.uniform(-0.03, 0.03))) if churn is not None else 0.15
+    v_ltv = max(0.0, ltv + random.uniform(-250, 250)) if ltv else 0.0
+
+    if v_ltv >= 50000:
+        plan = "Enterprise"
+    elif v_ltv >= 15000:
+        plan = "Scale"
+    elif v_ltv >= 5000:
+        plan = "Growth"
+    else:
+        plan = "Starter"
+
+    # Use realistic names and real-looking email addresses instead of
+    # "Scenario Customer 001 / scenario-001@paypilot.test" which visually
+    # exposes the synthetic nature of the dataset to reviewers.
+    name = fake.name()
+    username_base = name.lower().replace(" ", ".").replace("'", "")
+    domain = random.choice(["gmail.com", "outlook.com", "yahoo.co.in", "hotmail.com"])
+    suffix = random.randint(10, 99)
+    email = f"{username_base}{suffix}@{domain}"
+
     return {
         "id": uuid.uuid4(),
-        "name": f"Scenario Customer {index:03d}",
-        "email": f"scenario-{index:03d}@paypilot.test",
+        "name": name,
+        "email": email,
         "country": "India",
-        "plan": "Growth",
-        "lifetime_value": ltv,
-        "churn_risk_score": churn,
+        "plan": plan,
+        "lifetime_value": round(v_ltv, 2),
+        "churn_risk_score": round(v_churn, 3),
         "created_at": created,
     }
 
@@ -515,9 +548,18 @@ def bulk_insert(session, model, rows, chunk_size=2000):
 
 
 REVENUE_TABLES = [
-    RevenueEvent.__table__, GroundTruthScenario.__table__, RecoveryAttempt.__table__,
-    RecoveryOpportunity.__table__, CheckoutSession.__table__, Payment.__table__,
-    Subscription.__table__, Customer.__table__,
+    AuditDecision.__table__,
+    ExperimentAssignment.__table__,
+    Experiment.__table__,
+    MerchantPolicy.__table__,
+    RevenueEvent.__table__,
+    GroundTruthScenario.__table__,
+    RecoveryAttempt.__table__,
+    RecoveryOpportunity.__table__,
+    CheckoutSession.__table__,
+    Payment.__table__,
+    Subscription.__table__,
+    Customer.__table__,
 ]
 
 
@@ -527,7 +569,7 @@ def run(n_customers, wipe):
     if wipe:
         print("Dropping and recreating revenue tables only (merchants table untouched)...")
         Base.metadata.drop_all(bind=engine, tables=REVENUE_TABLES)
-    Base.metadata.create_all(bind=engine, tables=REVENUE_TABLES)
+    Base.metadata.create_all(bind=engine, tables=REVENUE_TABLES + [Merchant.__table__])
 
     print(f"Generating {n_customers} customers...")
     customers = make_customers(n_customers)

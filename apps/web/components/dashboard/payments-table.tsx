@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, CreditCard } from "lucide-react";
 import { formatINR } from "@/lib/format";
 import { StatusBadge } from "./status-badge";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 type SortKey = "amount" | "created_at" | "retry_count" | "status";
 
 export function PaymentsTable({ payments }: { payments: Payment[] }) {
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [asc, setAsc] = useState(false);
 
@@ -74,8 +76,9 @@ export function PaymentsTable({ payments }: { payments: Payment[] }) {
             {rows.map((p) => (
               <tr
                 key={p.id}
+                onClick={() => router.push(`?drawerType=payment&drawerId=${p.id}`)}
                 className={cn(
-                  "table-row border-b border-base-border last:border-0",
+                  "table-row border-b border-base-border last:border-0 cursor-pointer",
                   p.status === "failed" && "hover:shadow-[0_0_24px_rgba(240,85,76,0.06)]"
                 )}
               >

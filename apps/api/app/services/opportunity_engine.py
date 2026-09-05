@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
+from app.models.merchant import Merchant
+from app.models.policy import MerchantPolicy
 
 from app.models.revenue import (
     ActionStatus,
@@ -24,6 +26,8 @@ from app.models.revenue import (
     RevenueEvent,
     Subscription,
     SubscriptionStatus,
+    OpportunityPriority,
+    OpportunityConfidence,
 )
 from app.services.risk_scoring import (
     score_checkout_opportunity,
@@ -118,37 +122,8 @@ def _contact_count(db: Session, customer_id) -> int:
 
 
 def evaluate_policy(db: Session, source: str, amount: float, score: dict, payment: Payment | None = None, customer_id=None):
-    checks = []
-
-    def add(name: str, passed: bool, detail: str):
-        checks.append({"name": name, "passed": passed, "detail": detail})
-
-    intervention = score["recommended_intervention"]
-    recoverable_action = intervention != InterventionType.no_action.value and intervention != "no_action"
-    add("recoverable_action", recoverable_action, f"recommended intervention is {intervention}")
-
-    if payment is not None:
-        add("retry_count", payment.retry_count < MAX_RETRY_COUNT, f"{payment.retry_count}/{MAX_RETRY_COUNT} retries used")
-        latest_attempt = (
-            db.query(RecoveryAttempt)
-            .filter(RecoveryAttempt.payment_id == payment.id)
-            .order_by(RecoveryAttempt.created_at.desc())
-            .first()
-        )
-        cooldown_ok = not latest_attempt or latest_attempt.created_at <= datetime.utcnow() - timedelta(hours=RETRY_COOLDOWN_HOURS)
-        add("retry_cooldown", cooldown_ok, f"{RETRY_COOLDOWN_HOURS}h cooldown")
-
-    contact_count = _contact_count(db, customer_id)
-    add("contact_limit", contact_count < CONTACT_LIMIT_PER_CUSTOMER, f"{contact_count}/{CONTACT_LIMIT_PER_CUSTOMER} recent contacts")
-    add("amount_threshold", True, f"amount {amount:.2f}; escalation threshold {APPROVAL_AMOUNT_LIMIT}")
-
-    if not all(c["passed"] for c in checks):
-        return PolicyStatus.blocked, checks
-    if score["confidence"] == "high" and amount <= AUTO_AMOUNT_LIMIT and score["recovery_probability"] >= 0.7:
-        return PolicyStatus.auto, checks
-    if amount > APPROVAL_AMOUNT_LIMIT or score["priority"] == "critical":
-        return PolicyStatus.escalated, checks
-    return PolicyStatus.approval_required, checks
+    from app.services.policy_engine import evaluate_policy as eval_policy
+    return eval_policy(db, source, amount, score, payment, customer_id)
 
 
 def _truth_for_opportunity(db: Session, opp: RecoveryOpportunity) -> GroundTruthScenario | None:
@@ -235,6 +210,100 @@ def refresh_opportunities(db: Session, limit: int = 1000) -> int:
     }
 
     changed = 0
+
+    # Clear all existing opportunity links to avoid unique constraint conflicts
+    db.query(RecoveryAttempt).update({RecoveryAttempt.opportunity_id: None})
+    db.flush()
+
+    # Link and upsert opportunities for all existing recovery attempts
+    # Group attempts by entity to ensure unique mapping (since only 1 attempt can link to an opportunity)
+    payment_attempts = {}
+    checkout_attempts = {}
+    sub_attempts = {}
+    
+    attempts = db.query(RecoveryAttempt).all()
+    for attempt in attempts:
+        if attempt.payment_id:
+            existing = payment_attempts.get(attempt.payment_id)
+            # Prioritize successful attempts, or the latest attempt
+            if not existing or (attempt.status == RecoveryStatus.succeeded and existing.status != RecoveryStatus.succeeded) or (attempt.created_at > existing.created_at and existing.status != RecoveryStatus.succeeded):
+                payment_attempts[attempt.payment_id] = attempt
+        elif attempt.checkout_session_id:
+            existing = checkout_attempts.get(attempt.checkout_session_id)
+            if not existing or (attempt.status == RecoveryStatus.succeeded and existing.status != RecoveryStatus.succeeded) or (attempt.created_at > existing.created_at and existing.status != RecoveryStatus.succeeded):
+                checkout_attempts[attempt.checkout_session_id] = attempt
+        elif attempt.subscription_id:
+            existing = sub_attempts.get(attempt.subscription_id)
+            if not existing or (attempt.status == RecoveryStatus.succeeded and existing.status != RecoveryStatus.succeeded) or (attempt.created_at > existing.created_at and existing.status != RecoveryStatus.succeeded):
+                sub_attempts[attempt.subscription_id] = attempt
+
+    def sync_attempt_to_opportunity(attempt: RecoveryAttempt, lookup: dict, source: OpportunitySource):
+        nonlocal changed
+        cust_id = None
+        amount = 0.0
+        
+        if source == OpportunitySource.payment:
+            payment = db.query(Payment).filter(Payment.id == attempt.payment_id).first()
+            if payment:
+                amount = payment.amount
+                cust_id = payment.customer_id
+        elif source == OpportunitySource.checkout:
+            checkout = db.query(CheckoutSession).filter(CheckoutSession.id == attempt.checkout_session_id).first()
+            if checkout:
+                amount = checkout.amount
+                cust_id = checkout.customer_id
+        elif source == OpportunitySource.subscription:
+            sub = db.query(Subscription).filter(Subscription.id == attempt.subscription_id).first()
+            if sub:
+                amount = sub.mrr
+                cust_id = sub.customer_id
+                
+        opp = db.query(RecoveryOpportunity).filter_by(**lookup).first()
+        if not opp:
+            opp_id = uuid.uuid4()
+            prob = 0.85 if attempt.status == RecoveryStatus.succeeded else 0.25
+            opp = RecoveryOpportunity(
+                id=opp_id,
+                **lookup,
+                source=source,
+                customer_id=cust_id,
+                amount_at_risk=amount,
+                recovery_probability=prob,
+                intervention_success_probability=prob,
+                expected_recovery_value=amount * prob,
+                priority=OpportunityPriority.high if prob > 0.5 else OpportunityPriority.low,
+                confidence=OpportunityConfidence.high if prob > 0.5 else OpportunityConfidence.low,
+                recommended_intervention=attempt.intervention or InterventionType.payment_retry,
+                reason_codes="[]",
+                supporting_evidence="{}",
+                policy_status=PolicyStatus.auto if attempt.status == RecoveryStatus.succeeded else PolicyStatus.blocked,
+                policy_version="policy_v1",
+                policy_checks="[]",
+                created_at=attempt.created_at,
+            )
+            db.add(opp)
+            db.flush()
+            
+        if attempt.status == RecoveryStatus.succeeded:
+            opp.action_status = ActionStatus.completed
+            opp.outcome = OpportunityOutcome.recovered
+        else:
+            opp.action_status = ActionStatus.failed
+            opp.outcome = OpportunityOutcome.not_recovered
+            
+        opp.executed_at = attempt.resolved_at or attempt.created_at
+        opp.updated_at = datetime.utcnow()
+        
+        attempt.opportunity_id = opp.id
+        changed += 1
+
+    for pid, att in payment_attempts.items():
+        sync_attempt_to_opportunity(att, {"payment_id": pid}, OpportunitySource.payment)
+    for cid, att in checkout_attempts.items():
+        sync_attempt_to_opportunity(att, {"checkout_session_id": cid}, OpportunitySource.checkout)
+    for sid, att in sub_attempts.items():
+        sync_attempt_to_opportunity(att, {"subscription_id": sid}, OpportunitySource.subscription)
+
     failed_payments = (
         db.query(Payment)
         .filter(Payment.status == PaymentStatus.failed)
@@ -401,6 +470,12 @@ def execute_opportunity(db: Session, opp: RecoveryOpportunity, force_outcome: st
     if opp.policy_status == PolicyStatus.blocked or opp.action_status == ActionStatus.rejected:
         opp.action_status = ActionStatus.failed
         opp.outcome = OpportunityOutcome.not_recovered
+    elif force_outcome is None and opp.policy_status in (
+        PolicyStatus.approval_required,
+        PolicyStatus.escalated,
+    ) and opp.action_status == ActionStatus.open:
+        # Approval-gated policies cannot execute until approved (simulation may force_outcome).
+        raise ValueError("approval_required")
     else:
         opp.action_status = ActionStatus.executing
         if force_outcome == "success":

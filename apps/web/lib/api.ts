@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 const DEV_TOKEN = process.env.DEV_API_TOKEN;
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const cookieStore = await cookies();
   const token = cookieStore.get("paypilot_token")?.value ?? DEV_TOKEN;
   const res = await fetch(`${API_BASE}${path}`, {
@@ -47,6 +47,54 @@ export function getRevenueSummary(days = 1) {
 
 export function getRevenueAtRisk() {
   return apiFetch<RevenueAtRisk>(`/revenue/at-risk`);
+}
+
+export interface DashboardOpportunityCard {
+  id: string;
+  title: string;
+  source: string;
+  amount_at_risk: number;
+  recovery_probability: number;
+  expected_recovery_value: number;
+  confidence: string;
+  recommended_intervention: string;
+  href: string;
+}
+
+export interface DashboardSummary {
+  period_days: number;
+  revenue_period: number;
+  previous_revenue_period: number;
+  revenue_delta_pct: number | null;
+  revenue_health_score: number;
+  revenue_at_risk: number;
+  by_source: RevenueAtRiskSource[];
+  expected_recovery: number;
+  high_confidence_recoverable: number;
+  recovered_period: number;
+  recovery_rate: number | null;
+  active_opportunities: number;
+  top_opportunities: DashboardOpportunityCard[];
+  briefing: { headline: string; insights: string[] };
+}
+
+export function getDashboardSummary(days = 180) {
+  return apiFetch<DashboardSummary>(`/dashboard/summary?days=${days}`);
+}
+
+export interface SearchHit {
+  id: string;
+  type: string;
+  title: string;
+  subtitle?: string | null;
+  href: string;
+  meta?: string | null;
+}
+
+export function globalSearch(q: string, limit = 8) {
+  return apiFetch<{ query: string; total: number; items: SearchHit[] }>(
+    `/search?q=${encodeURIComponent(q)}&limit=${limit}`
+  );
 }
 
 export interface Customer {
@@ -354,4 +402,206 @@ export function createExperiment(payload: {
 
 export function startExperiment(id: string) {
   return apiFetch<Experiment>(`/experiments/${id}/start`, { method: "POST" });
+}
+
+export interface Policy {
+  max_retry_count: number;
+  retry_cooldown_hours: number;
+  auto_amount_limit: number;
+  approval_amount_limit: number;
+  contact_limit_per_customer: number;
+  min_confidence_for_auto: number;
+}
+
+export function getPolicy() {
+  return apiFetch<Policy>(`/policy`);
+}
+
+export function updatePolicy(policy: Policy) {
+  return apiFetch<Policy>(`/policy`, {
+    method: "POST",
+    body: JSON.stringify(policy),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export interface RevenueLeak {
+  title: string;
+  impact_amount: number;
+  cause: string;
+  confidence: string;
+  recommended_action: string;
+  potential_recovery: number;
+}
+
+export interface Recommendation {
+  title: string;
+  amount_at_risk: number;
+  avg_probability: number;
+  expected_recovery: number;
+  count: number;
+}
+
+export function getRevenueLeaks() {
+  return apiFetch<RevenueLeak[]>(`/revenue/leaks`);
+}
+
+export function getRevenueRecommendations() {
+  return apiFetch<Recommendation[]>(`/revenue/recommendations`);
+}
+
+export interface RootCauseFactor {
+  factor: string;
+  change: string;
+  impact_direction: string;
+  impact_weight: number;
+  explanation: string;
+  type: string;
+}
+
+export interface RootCauseAnalysis {
+  days: number;
+  revenue_change_pct: number;
+  revenue_delta: number;
+  factors: RootCauseFactor[];
+  summary_sentence: string;
+}
+
+export function getRevenueRootCause(days = 30) {
+  return apiFetch<RootCauseAnalysis>(`/revenue/root-cause?days=${days}`);
+}
+
+// ── Churn Radar ──────────────────────────────────────
+
+export interface ChurnEntry {
+  id: string;
+  name: string;
+  email: string;
+  churn_risk_score: number;
+  mrr_at_risk: number;
+  reasons: string[];
+}
+
+export function getChurnRadar(limit = 50) {
+  return apiFetch<ChurnEntry[]>(`/revenue/churn-radar?limit=${limit}`);
+}
+
+// ── Renewal Radar ─────────────────────────────────────
+
+export interface RenewalEntry {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  plan_name: string;
+  mrr: number;
+  current_period_end: string;
+  risk_level: "high" | "medium" | "low";
+  churn_risk_score: number;
+  days_until_renewal: number;
+}
+
+export function getRenewalRadar(days = 30) {
+  return apiFetch<RenewalEntry[]>(`/revenue/renewal-radar?days=${days}`);
+}
+
+// ── Business Impact ───────────────────────────────────
+
+export interface ImpactSummary {
+  total_recovered: number;
+  total_attempts: number;
+  successful_attempts: number;
+  total_at_risk: number;
+  organic_baseline: number;
+  incremental_lift: number;
+  automation_rate: number;
+  avg_time_to_recovery_hours: number | null;
+}
+
+export function getImpactSummary() {
+  return apiFetch<ImpactSummary>("/revenue/impact-summary");
+}
+
+// ── Customer 360 ──────────────────────────────────────────────────────────────
+
+export interface CustomerDetail {
+  id: string;
+  name: string;
+  email: string;
+  country: string | null;
+  plan: string | null;
+  segment: string | null;
+  created_at: string;
+  lifetime_value: number;
+  churn_risk_score: number;
+  health_score: number;
+  subscription: {
+    plan_name: string;
+    mrr: number;
+    status: string;
+    current_period_end: string;
+    created_at: string;
+    canceled_at: string | null;
+  } | null;
+  mrr: number;
+  mrr_at_risk: number;
+  total_payments: number;
+  payment_success_rate: number;
+  failed_payment_count: number;
+  successful_renewals: number;
+  failed_renewals: number;
+  total_recovery_attempts: number;
+  recovery_success_rate: number;
+  total_recovered: number;
+  revenue_at_risk: number;
+  expected_recovery: number;
+  open_opportunity: {
+    id: string;
+    source: string;
+    amount_at_risk: number;
+    recovery_probability: number;
+    expected_recovery_value: number;
+    priority: string;
+    confidence: string;
+    recommended_intervention: string;
+    policy_status: string;
+    action_status: string;
+  } | null;
+  risk_factors: Array<{ factor: string; severity: string; detail: string }>;
+  recommended_action: string;
+  timeline: Array<{
+    ts: string;
+    type: string;
+    title: string;
+    detail: string;
+    icon: string;
+    severity?: string;
+    amount?: number;
+  }>;
+  recent_payments: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    failure_reason: string | null;
+    payment_method: string | null;
+    retry_count: number;
+    created_at: string;
+  }>;
+}
+
+export function getCustomerDetail(id: string) {
+  return apiFetch<CustomerDetail>(`/customers/${id}/detail`);
+}
+
+// ── Demo Mode ─────────────────────────────────────────────────────────────────
+
+export interface DemoScenario {
+  index: number;
+  label: string;
+  description: string;
+  expected_policy: string;
+}
+
+export function getDemoScenarios() {
+  return apiFetch<DemoScenario[]>("/demo/scenarios");
 }

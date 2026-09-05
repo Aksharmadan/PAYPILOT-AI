@@ -33,7 +33,8 @@ def _auc(points):
 
 
 def _opportunity_query(db: Session, split: DatasetSplit | None = DatasetSplit.heldout):
-    refresh_opportunities(db)
+    if db.query(RecoveryOpportunity).count() == 0:
+        refresh_opportunities(db)
     query = (
         db.query(RecoveryOpportunity, GroundTruthScenario)
         .join(
@@ -66,8 +67,9 @@ def evaluation_points(db: Session, split: DatasetSplit | None = DatasetSplit.hel
     ]
 
 
-def model_metrics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout):
-    points = evaluation_points(db, split)
+def model_metrics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout, points: list | None = None):
+    if points is None:
+        points = evaluation_points(db, split)
     if len(points) < 20:
         return {"insufficient_data": True, "sample_size": len(points)}
 
@@ -93,8 +95,9 @@ def model_metrics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout
     }
 
 
-def calibration(db: Session, split: DatasetSplit | None = DatasetSplit.heldout):
-    points = evaluation_points(db, split)
+def calibration(db: Session, split: DatasetSplit | None = DatasetSplit.heldout, points: list | None = None):
+    if points is None:
+        points = evaluation_points(db, split)
     rows = []
     for low, high in BUCKETS:
         bucket = [p for p in points if low <= p["probability"] < high]
@@ -109,8 +112,9 @@ def calibration(db: Session, split: DatasetSplit | None = DatasetSplit.heldout):
     return {"sample_size": len(points), "buckets": rows}
 
 
-def recovery_economics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout):
-    points = evaluation_points(db, split)
+def recovery_economics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout, points: list | None = None):
+    if points is None:
+        points = evaluation_points(db, split)
     if not points:
         return {"insufficient_data": True, "sample_size": 0}
     total_at_risk = sum(p["opportunity"].amount_at_risk for p in points)
@@ -129,8 +133,9 @@ def recovery_economics(db: Session, split: DatasetSplit | None = DatasetSplit.he
     }
 
 
-def intervention_metrics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout):
-    points = evaluation_points(db, split)
+def intervention_metrics(db: Session, split: DatasetSplit | None = DatasetSplit.heldout, points: list | None = None):
+    if points is None:
+        points = evaluation_points(db, split)
     if not points:
         return {"insufficient_data": True, "sample_size": 0}
     correct = unnecessary = missed = false_positive_cost = 0
@@ -153,6 +158,7 @@ def intervention_metrics(db: Session, split: DatasetSplit | None = DatasetSplit.
         "unnecessary_intervention": unnecessary,
         "missed_opportunity": missed,
         "false_positive_cost": round(false_positive_cost, 2),
+        "white_space_indicator": 0,  # maintain schema
         "intervention_accuracy": _round(_safe_div(correct, len(points))),
     }
 
@@ -174,19 +180,23 @@ def ground_truth_distribution(db: Session):
 
 
 def evaluation_summary(db: Session):
-    model = model_metrics(db)
+    heldout_points = evaluation_points(db, DatasetSplit.heldout)
+    all_points = evaluation_points(db, None)
+    
+    model = model_metrics(db, DatasetSplit.heldout, heldout_points)
     return {
         "model": model,
-        "calibration": calibration(db),
-        "recovery": recovery_economics(db),
-        "interventions": intervention_metrics(db),
+        "calibration": calibration(db, DatasetSplit.heldout, heldout_points),
+        "recovery": recovery_economics(db, DatasetSplit.heldout, heldout_points),
+        "interventions": intervention_metrics(db, DatasetSplit.heldout, heldout_points),
         "ground_truth_distribution": ground_truth_distribution(db),
-        "confidence_distribution": confidence_distribution(db),
+        "confidence_distribution": confidence_distribution(db, all_points),
     }
 
 
-def confidence_distribution(db: Session):
-    points = evaluation_points(db, None)
+def confidence_distribution(db: Session, points: list | None = None):
+    if points is None:
+        points = evaluation_points(db, None)
     counts = Counter(point["opportunity"].confidence.value for point in points)
     amounts = Counter()
     for point in points:

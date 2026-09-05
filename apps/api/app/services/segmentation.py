@@ -53,3 +53,35 @@ def segment_for_customer(db: Session, customer: Customer) -> str:
         recovery_successes=recovery_successes,
         failed_payments=failed_payments,
     )
+
+
+def segments_for_customers(db: Session, customers: list[Customer]) -> dict:
+    """Batch segment labels — 2 queries total instead of 2N."""
+    if not customers:
+        return {}
+    ids = [c.id for c in customers]
+
+    recovery_rows = (
+        db.query(Payment.customer_id, func.count(RecoveryAttempt.id))
+        .join(RecoveryAttempt, RecoveryAttempt.payment_id == Payment.id)
+        .filter(Payment.customer_id.in_(ids))
+        .filter(RecoveryAttempt.status == RecoveryStatus.succeeded)
+        .group_by(Payment.customer_id)
+        .all()
+    )
+    failed_rows = (
+        db.query(Payment.customer_id, func.count(Payment.id))
+        .filter(Payment.customer_id.in_(ids), Payment.status == PaymentStatus.failed)
+        .group_by(Payment.customer_id)
+        .all()
+    )
+    recovery_map = {cid: n for cid, n in recovery_rows}
+    failed_map = {cid: n for cid, n in failed_rows}
+    return {
+        c.id: classify_customer_segment(
+            c,
+            recovery_successes=recovery_map.get(c.id, 0),
+            failed_payments=failed_map.get(c.id, 0),
+        )
+        for c in customers
+    }

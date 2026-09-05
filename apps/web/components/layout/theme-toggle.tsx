@@ -4,13 +4,13 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
+  // Start assuming dark (matches the blocking script default) to avoid hydration mismatch
   const [dark, setDark] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("paypilot-theme");
-    const nextDark = stored ? stored === "dark" : true;
-    setDark(nextDark);
-    document.documentElement.classList.toggle("dark", nextDark);
+    // Read whatever the blocking script already applied
+    const isDark = document.documentElement.classList.contains("dark");
+    setDark(isDark);
   }, []);
 
   function toggle() {
@@ -23,10 +23,14 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="h-9 w-9 rounded-lg border border-base-border bg-base-100 text-ink-300 shadow-card transition hover:-translate-y-0.5 hover:text-ink-0"
+      className="h-8 w-8 rounded-xl border border-base-border bg-base-100 text-ink-300 transition-all hover:text-ink-0 hover:border-violet-500/30 flex items-center justify-center"
       title={dark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
     >
-      {dark ? <Moon size={16} className="mx-auto" /> : <Sun size={16} className="mx-auto" />}
+      {dark
+        ? <Moon size={14} className="text-ink-300" />
+        : <Sun  size={14} className="text-amber-400" />
+      }
     </button>
   );
 }

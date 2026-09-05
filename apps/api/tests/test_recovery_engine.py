@@ -7,6 +7,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base
+from app.models.merchant import Merchant
+from app.models.policy import MerchantPolicy
 from app.models.revenue import (
     ActionStatus,
     CheckoutSession,
