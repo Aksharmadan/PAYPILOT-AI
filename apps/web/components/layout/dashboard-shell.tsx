@@ -41,24 +41,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
-      {/* Root container */}
       <div className="relative flex h-screen w-screen overflow-hidden bg-base-0">
 
-        {/* Subtle grid overlay — only at the top */}
-        <div
-          aria-hidden
-          className="surface-grid pointer-events-none absolute inset-0 opacity-25"
-        />
+        {/* Subtle grid overlay */}
+        <div aria-hidden className="surface-grid pointer-events-none absolute inset-0 opacity-25" />
 
         {/* Sidebar */}
         <Sidebar />
 
-        {/* Main content column */}
+        {/* Main column */}
         <div className="relative flex min-w-0 flex-1 flex-col h-full overflow-hidden">
           <Topbar onOpenPalette={() => setPaletteOpen(true)} />
 
-          <main className="flex-1 overflow-y-auto scroll-smooth">
-            {/* Inner padding wrapper — all pages get consistent spacing */}
+          {/*
+            overflow-y-auto on main, overflow-x-hidden to stop layout jumps.
+            PageTransition uses AnimatePresence mode="wait" — the exiting page
+            fades out first (20ms), then the entering page fades in so there's
+            no double-render flash.
+          */}
+          <main className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth">
             <div className="min-h-full px-6 py-5 lg:px-8 lg:py-6">
               <PageTransition>{children}</PageTransition>
             </div>

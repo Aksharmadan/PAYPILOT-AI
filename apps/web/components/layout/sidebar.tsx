@@ -1,27 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition, useState } from "react";
 import { LogoLockup } from "@/components/layout/logo";
 import {
-  LayoutGrid,
-  TrendingUp,
-  Users,
-  CreditCard,
-  RefreshCw,
-  Sparkles,
-  Zap,
-  BarChart3,
-  ShieldAlert,
-  FileText,
-  Settings,
-  Play,
-  FlaskConical,
-  Activity,
-  ChevronDown,
+  LayoutGrid, TrendingUp, Users, CreditCard, RefreshCw,
+  Sparkles, Zap, BarChart3, ShieldAlert, FileText, Settings,
+  Play, FlaskConical, Activity, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 /* ── Nav structure ─────────────────────────────────────── */
 interface NavItem {
@@ -29,7 +17,6 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   accent?: boolean;
-  badge?: string;
 }
 interface NavGroup {
   group: string;
@@ -60,34 +47,35 @@ const NAV: NavGroup[] = [
           { label: "Renewal Radar", href: "/risk/renewal", icon: RefreshCw   },
         ],
       },
-      { label: "AI Analyst",   href: "/copilot",              icon: Sparkles,    accent: true },
-      { label: "Experiments",  href: "/revenue/experiments",  icon: FlaskConical },
+      { label: "AI Analyst",  href: "/copilot",             icon: Sparkles,    accent: true },
+      { label: "Experiments", href: "/revenue/experiments", icon: FlaskConical },
     ],
   },
   {
     group: "SYSTEM",
     items: [
-      { label: "Automation",       href: "/automation", icon: Zap       },
-      { label: "Business Impact",  href: "/analytics",  icon: BarChart3 },
-      { label: "Audit Trail",      href: "/audit",      icon: FileText  },
+      { label: "Automation",      href: "/automation", icon: Zap       },
+      { label: "Business Impact", href: "/analytics",  icon: BarChart3 },
+      { label: "Audit Trail",     href: "/audit",      icon: FileText  },
     ],
   },
 ];
 
-/* ── Helpers ───────────────────────────────────────────── */
-function isActive(href: string, pathname: string) {
+/* ── Route match helper ────────────────────────────────── */
+function matchHref(href: string, pathname: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 }
 
-/* ── Collapsible group ─────────────────────────────────── */
+/* ── Collapsible child group ───────────────────────────── */
 function NavGroupCollapse({
-  item,
-  pathname,
+  item, pathname, pending, navigate,
 }: {
   item: { label: string; icon: React.ElementType; children: NavItem[] };
   pathname: string;
+  pending: boolean;
+  navigate: (href: string) => void;
 }) {
-  const anyActive = item.children.some(c => isActive(c.href, pathname));
+  const anyActive = item.children.some(c => matchHref(c.href, pathname));
   const [open, setOpen] = useState(anyActive);
   const Icon = item.icon;
 
@@ -97,43 +85,37 @@ function NavGroupCollapse({
         type="button"
         onClick={() => setOpen(o => !o)}
         className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-160",
-          anyActive
-            ? "text-violet-300 bg-violet-500/8"
-            : "text-ink-500 hover:text-ink-300 hover:bg-base-200/60"
+          "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors duration-160",
+          anyActive ? "text-violet-300 bg-violet-500/8" : "text-ink-500 hover:text-ink-300 hover:bg-base-200/60"
         )}
       >
         <Icon size={15} className={anyActive ? "text-violet-400" : "text-ink-500"} />
         <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown
-          size={12}
-          className={cn(
-            "shrink-0 transition-transform duration-240",
-            open ? "rotate-0 text-ink-400" : "-rotate-90 text-ink-500"
-          )}
-        />
+        <ChevronDown size={12} className={cn(
+          "shrink-0 transition-transform duration-240",
+          open ? "rotate-0 text-ink-400" : "-rotate-90 text-ink-500"
+        )} />
       </button>
 
       {open && (
         <div className="mt-1 ml-4 pl-3 border-l border-base-border/50 space-y-0.5">
           {item.children.map(child => {
-            const active = isActive(child.href, pathname);
+            const active = matchHref(child.href, pathname);
             return (
-              <Link
+              <button
                 key={child.href}
-                href={child.href}
+                type="button"
+                onClick={() => navigate(child.href)}
                 className={cn(
-                  "flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-160",
+                  "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors duration-160",
                   active
                     ? "text-violet-300 font-semibold bg-violet-500/10"
                     : "text-ink-500 hover:text-ink-300 hover:bg-base-200/50"
                 )}
               >
-                {active && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-                )}
+                {active && <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />}
                 {child.label}
-              </Link>
+              </button>
             );
           })}
         </div>
@@ -144,7 +126,31 @@ function NavGroupCollapse({
 
 /* ── Main sidebar ──────────────────────────────────────── */
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname           = usePathname();
+  const router             = useRouter();
+  const [isPending, startTransition] = useTransition();
+  // Optimistic href — lights up the destination immediately on click
+  const [optimisticHref, setOptimisticHref] = useState<string | null>(null);
+
+  function navigate(href: string) {
+    if (href === pathname) return;
+    setOptimisticHref(href);
+    startTransition(() => {
+      router.push(href);
+    });
+  }
+
+  // The "active" href for styling: prefer optimistic (instant) over actual pathname
+  function isNavActive(href: string) {
+    const current = optimisticHref ?? pathname;
+    return matchHref(href, current);
+  }
+
+  // Clear optimistic state once navigation completes
+  // (usePathname updates when the new page is ready)
+  if (optimisticHref && pathname !== optimisticHref && matchHref(optimisticHref, pathname)) {
+    setOptimisticHref(null);
+  }
 
   return (
     <aside
@@ -156,11 +162,22 @@ export function Sidebar() {
         <LogoLockup iconSize={32} showDot={true} tagline="Revenue Engine" />
       </div>
 
+      {/* ── Loading bar — appears during page fetch ── */}
+      <div
+        aria-hidden
+        className={cn(
+          "absolute top-14 left-0 right-0 h-0.5 origin-left transition-all duration-700 ease-out",
+          isPending
+            ? "bg-gradient-to-r from-violet-500 via-violet-400 to-transparent opacity-100 scale-x-100"
+            : "opacity-0 scale-x-0"
+        )}
+        style={{ transform: isPending ? "scaleX(0.85)" : "scaleX(0)" }}
+      />
+
       {/* ── Navigation ───────────────────── */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4" aria-label="Primary navigation">
         {NAV.map(sec => (
           <div key={sec.group}>
-            {/* Group label */}
             <div className="px-3 pb-1.5 text-2xs font-bold uppercase tracking-widest text-ink-500/70">
               {sec.group}
             </div>
@@ -170,20 +187,27 @@ export function Sidebar() {
                 /* Collapsible group */
                 if ("children" in item) {
                   return (
-                    <NavGroupCollapse key={item.label} item={item} pathname={pathname} />
+                    <NavGroupCollapse
+                      key={item.label}
+                      item={item}
+                      pathname={optimisticHref ?? pathname}
+                      pending={isPending}
+                      navigate={navigate}
+                    />
                   );
                 }
 
-                const active   = isActive(item.href, pathname);
+                const active   = isNavActive(item.href);
                 const isAccent = "accent" in item && item.accent;
                 const Icon     = item.icon;
 
                 return (
-                  <Link
+                  <button
                     key={item.href}
-                    href={item.href}
+                    type="button"
+                    onClick={() => navigate(item.href)}
                     className={cn(
-                      "group relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-160",
+                      "group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors duration-120",
                       active
                         ? "bg-violet-500/12 text-white border border-violet-500/20"
                         : isAccent
@@ -195,19 +219,18 @@ export function Sidebar() {
                       size={15}
                       className={cn(
                         "shrink-0 transition-colors",
-                        active   ? "text-violet-400"
+                        active    ? "text-violet-400"
                         : isAccent ? "text-violet-400"
                         : "text-ink-500 group-hover:text-ink-300"
                       )}
                     />
-                    <span className="flex-1 truncate">{item.label}</span>
+                    <span className="flex-1 truncate text-left">{item.label}</span>
 
-                    {/* Active indicator pill */}
+                    {/* Active dot */}
                     {active && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0
-                        shadow-[0_0_6px_rgba(124,111,240,0.8)]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0 shadow-[0_0_6px_rgba(124,111,240,0.8)]" />
                     )}
-                  </Link>
+                  </button>
                 );
               })}
             </div>
@@ -217,25 +240,27 @@ export function Sidebar() {
 
       {/* ── Footer ───────────────────────── */}
       <div className="shrink-0 p-2 border-t border-base-border/60 space-y-0.5">
-        <Link
-          href="/demo"
+        <button
+          type="button"
+          onClick={() => navigate("/demo")}
           className={cn(
-            "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all",
-            pathname === "/demo"
+            "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors",
+            isNavActive("/demo")
               ? "bg-amber-500/12 text-amber-300 border border-amber-500/20"
               : "text-amber-500/70 hover:text-amber-400 hover:bg-amber-500/8"
           )}
         >
           <Play size={13} className="shrink-0" />
           Demo Mode
-        </Link>
-        <Link
-          href="/settings"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-ink-500 hover:text-ink-300 hover:bg-base-200/50 transition-all"
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/settings")}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-ink-500 hover:text-ink-300 hover:bg-base-200/50 transition-colors"
         >
           <Settings size={13} className="shrink-0" />
           Settings
-        </Link>
+        </button>
       </div>
     </aside>
   );
