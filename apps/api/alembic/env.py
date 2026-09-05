@@ -6,12 +6,14 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.core.database import Base
 from app.models import merchant  # noqa: F401
-from app.models import revenue  # noqa: F401
+from app.models import revenue   # noqa: F401
 from app.models import experiment  # noqa: F401
-from app.models import audit  # noqa: F401
+from app.models import audit     # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+# Use the resolved URL (psycopg2 driver + SSL for hosted DBs)
+config.set_main_option("sqlalchemy.url", settings.database_url_resolved)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -19,9 +21,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def run_migrations_offline():
+def run_migrations_offline() -> None:
     context.configure(
-        url=settings.DATABASE_URL,
+        url=settings.database_url_resolved,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -30,7 +32,7 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-def run_migrations_online():
+def run_migrations_online() -> None:
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
