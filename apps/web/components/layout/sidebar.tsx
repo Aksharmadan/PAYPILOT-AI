@@ -27,7 +27,7 @@ const NAV: NavGroup[] = [
   {
     group: "OPERATE",
     items: [
-      { label: "Command Center",  href: "/",                      icon: LayoutGrid },
+      { label: "Command Center",  href: "/command-center",        icon: LayoutGrid },
       { label: "Opportunities",   href: "/revenue/opportunities", icon: TrendingUp },
       { label: "Recovery",        href: "/revenue/recovery",      icon: Activity   },
       { label: "Customers",       href: "/customers",             icon: Users      },
@@ -63,7 +63,8 @@ const NAV: NavGroup[] = [
 
 /* ── Route match helper ────────────────────────────────── */
 function matchHref(href: string, pathname: string) {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  if (href === "/command-center") return pathname === "/command-center";
+  return pathname === href || pathname.startsWith(href + "/");
 }
 
 /* ── Collapsible child group ───────────────────────────── */

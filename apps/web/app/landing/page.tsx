@@ -265,7 +265,7 @@ export default function LandingPage() {
           <Link href="/login" className="text-xs font-medium text-ink-300 hover:text-ink-0 px-3 py-1.5 rounded-lg transition-colors duration-160">
             Sign in
           </Link>
-          <Link href="/login" className="btn-glow-violet inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white">
+          <Link href="/command-center" className="btn-glow-violet inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white">
             Enter PayPilot <ArrowRight size={12} />
           </Link>
         </div>
@@ -301,7 +301,7 @@ export default function LandingPage() {
 
         {/* CTAs */}
         <div className="flex flex-wrap items-center justify-center gap-3 mt-10 animate-rise stagger-2">
-          <Link href="/login"
+          <Link href="/command-center"
             className="btn-glow-violet inline-flex items-center gap-2 rounded-xl bg-violet-600 px-7 py-3.5 text-sm font-bold text-white">
             ENTER PAYPILOT
             <ArrowRight size={15} />
@@ -1017,7 +1017,7 @@ export default function LandingPage() {
             Stop watching failed payments silently disappear. Enter PayPilot and see exactly what you're losing — and exactly how to get it back.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <Link href="/login"
+            <Link href="/command-center"
               className="btn-glow-violet inline-flex items-center gap-2.5 rounded-2xl bg-violet-600 px-10 py-4 text-sm font-black text-white shadow-2xl shadow-violet-600/30">
               ENTER PAYPILOT
               <ArrowRight size={16} />
@@ -1057,7 +1057,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4 text-2xs text-ink-500">
             <Link href="/login" className="hover:text-ink-300 transition-colors">Sign In</Link>
-            <Link href="/login" className="hover:text-ink-300 transition-colors">Dashboard</Link>
+            <Link href="/command-center" className="hover:text-ink-300 transition-colors">Dashboard</Link>
           </div>
         </div>
       </footer>

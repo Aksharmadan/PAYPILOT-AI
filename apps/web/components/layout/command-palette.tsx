@@ -38,7 +38,7 @@ type PaletteItem = {
 };
 
 const ROUTES: PaletteItem[] = [
-  { id: "home",         label: "Command Center",       href: "/",                      icon: LayoutGrid,  kind: "route", group: "Operate" },
+  { id: "home",         label: "Command Center",       href: "/command-center",        icon: LayoutGrid,  kind: "route", group: "Operate" },
   { id: "opportunities",label: "Opportunities",        href: "/revenue/opportunities", icon: TrendingUp,  kind: "route", group: "Operate", keywords: ["approve", "recover"] },
   { id: "recovery",     label: "Recovery",             href: "/revenue/recovery",      icon: Activity,    kind: "route", group: "Operate" },
   { id: "customers",    label: "Customers",            href: "/customers",             icon: Users,       kind: "route", group: "Operate" },

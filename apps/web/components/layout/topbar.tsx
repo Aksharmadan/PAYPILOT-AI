@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 
 /* ── Page title map ─────────────────────────────────────── */
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  "/":                      { title: "Command Center",    subtitle: "Revenue cockpit" },
+  "/command-center":        { title: "Command Center",    subtitle: "Revenue cockpit" },
   "/revenue/opportunities": { title: "Opportunities",     subtitle: "Recovery queue" },
   "/revenue/recovery":      { title: "Recovery",          subtitle: "Execution monitor" },
   "/customers":             { title: "Customers",         subtitle: "Customer 360" },
