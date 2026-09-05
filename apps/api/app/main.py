@@ -133,13 +133,20 @@ def on_startup() -> None:
                 "startup: fresh database stamped at Alembic head"
             )
 
-        else:
-            command.upgrade(cfg, "head")
+       else:
+    # Existing database: use the normal Alembic migration path.
+    log.info("startup: existing database detected")
+    log.info("startup: about to run Alembic upgrade")
 
-            log.info(
-                "startup: migrations applied to head"
-            )
+    command.upgrade(cfg, "head")
 
+    log.info(
+        "startup: Alembic upgrade completed"
+    )
+
+    log.info(
+        "startup: migrations applied to head"
+    )
         # ---------------------------------------------------------
         # PRODUCTION DEMO DATA BOOTSTRAP
         # ---------------------------------------------------------
