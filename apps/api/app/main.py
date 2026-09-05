@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 
@@ -63,21 +64,24 @@ def on_startup() -> None:
     """
     Initialize the database on startup.
 
-    For a completely fresh database, create the schema from the current
-    SQLAlchemy models and stamp Alembic at head.
+    Fresh database:
+      - Create the SQLAlchemy schema.
+      - Stamp Alembic at head.
 
-    For an existing database, run normal Alembic migrations.
+    Existing database:
+      - Run normal Alembic migrations.
 
-    This handles the current repository state where the initial Alembic
-    migration expects core tables such as `customers` to already exist.
+    Optional demo bootstrap:
+      - When SEED_DEMO_DATA=true and the database has no customers,
+        generate the production demo dataset and refresh opportunities.
     """
+
     from alembic import command
     from alembic.config import Config
     from pathlib import Path
 
     alembic_ini = Path(__file__).resolve().parents[1] / "alembic.ini"
 
-    # Log the database URL without exposing the password.
     _safe_db_url = _redact_db_url(settings.database_url_resolved)
 
     log.info(
@@ -88,12 +92,12 @@ def on_startup() -> None:
     cfg = Config(str(alembic_ini))
 
     try:
-        from sqlalchemy import inspect
+        from sqlalchemy import inspect, func
 
-        from app.core.database import Base, engine
+        from app.core.database import Base, engine, SessionLocal
 
         # Import all model modules so every SQLAlchemy model is registered
-        # in Base.metadata before create_all() runs.
+        # before Base.metadata.create_all() runs.
         from app.models import (
             audit,
             experiment,
@@ -102,7 +106,6 @@ def on_startup() -> None:
             revenue,
         )
 
-        # Keep the imports above intentionally active.
         _ = audit
         _ = experiment
         _ = merchant
@@ -118,35 +121,82 @@ def on_startup() -> None:
                 "creating schema from SQLAlchemy models"
             )
 
-            # Create all tables defined by the application's SQLAlchemy
-            # models, including their PostgreSQL enum types and foreign keys.
             Base.metadata.create_all(bind=engine)
 
             log.info(
                 "startup: base schema created successfully"
             )
 
-            # The current Alembic migration history expects the core
-            # application tables to already exist. Since create_all()
-            # has created the current schema, mark the database as being
-            # at the latest Alembic revision.
             command.stamp(cfg, "head")
 
             log.info(
-                "startup: fresh database stamped at Alembic head — api ready"
+                "startup: fresh database stamped at Alembic head"
             )
 
         else:
-            # Existing database: use the normal Alembic migration path.
             command.upgrade(cfg, "head")
 
             log.info(
-                "startup: migrations applied to head — api ready"
+                "startup: migrations applied to head"
             )
 
+        # ---------------------------------------------------------
+        # PRODUCTION DEMO DATA BOOTSTRAP
+        # ---------------------------------------------------------
+
+        if os.getenv("SEED_DEMO_DATA", "").lower() == "true":
+            from app.models.revenue import Customer
+            from app.seed_data import run as run_seed
+            from app.services.opportunity_engine import refresh_opportunities
+
+            seed_db = SessionLocal()
+
+            try:
+                customer_count = (
+                    seed_db.query(func.count(Customer.id)).scalar() or 0
+                )
+
+                if customer_count == 0:
+                    log.info(
+                        "startup: empty database detected — "
+                        "starting demo data seed"
+                    )
+
+                    # 500 gives us a rich demo without making deployment
+                    # unnecessarily slow.
+                    run_seed(
+                        n_customers=500,
+                        wipe=False,
+                    )
+
+                    log.info(
+                        "startup: demo data generated successfully"
+                    )
+
+                    # Convert failed payments, abandoned checkouts and
+                    # past-due subscriptions into recovery opportunities.
+                    changed = refresh_opportunities(seed_db)
+
+                    log.info(
+                        "startup: recovery opportunities refreshed",
+                        extra={"opportunities_changed": changed},
+                    )
+
+                    log.info(
+                        "startup: DEMO DATA BOOTSTRAP COMPLETE"
+                    )
+
+                else:
+                    log.info(
+                        "startup: demo data already exists — "
+                        "skipping seed",
+                        extra={"customer_count": customer_count},
+                    )
+
+            finally:
+                seed_db.close()
+
     except Exception as exc:  # noqa: BLE001
-        # Log the full traceback so Render/uvicorn logs show the actual
-        # database initialization error.
         log.error(
             "startup: database initialization FAILED — process will exit",
             extra={
@@ -157,8 +207,6 @@ def on_startup() -> None:
             },
         )
 
-        # Also print to stderr for environments where the structured
-        # logger is not captured.
         print(
             f"\n[STARTUP FAILURE] Database initialization failed.\n"
             f"DB host: {_safe_db_url}\n"
@@ -168,8 +216,6 @@ def on_startup() -> None:
 
         traceback.print_exc(file=sys.stderr)
 
-        # Re-raise so uvicorn exits with a non-zero status instead of
-        # silently continuing with a broken database state.
         raise
 
 
