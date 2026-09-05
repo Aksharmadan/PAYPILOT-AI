@@ -133,20 +133,21 @@ def on_startup() -> None:
                 "startup: fresh database stamped at Alembic head"
             )
 
-       else:
-    # Existing database: use the normal Alembic migration path.
-    log.info("startup: existing database detected")
-    log.info("startup: about to run Alembic upgrade")
+        else:
+            # Existing database: use the normal Alembic migration path.
+            log.info("startup: existing database detected")
+            log.info("startup: about to run Alembic upgrade")
 
-    command.upgrade(cfg, "head")
+            command.upgrade(cfg, "head")
 
-    log.info(
-        "startup: Alembic upgrade completed"
-    )
+            log.info(
+                "startup: Alembic upgrade completed"
+            )
 
-    log.info(
-        "startup: migrations applied to head"
-    )
+            log.info(
+                "startup: migrations applied to head"
+            )
+
         # ---------------------------------------------------------
         # PRODUCTION DEMO DATA BOOTSTRAP
         # ---------------------------------------------------------
@@ -162,46 +163,48 @@ def on_startup() -> None:
                 customer_count = (
                     seed_db.query(func.count(Customer.id)).scalar() or 0
                 )
+            finally:
+                seed_db.close()
 
-                if customer_count == 0:
-                    log.info(
-                        "startup: empty database detected — "
-                        "starting demo data seed"
-                    )
+            if customer_count == 0:
+                log.info(
+                    "startup: empty database detected — "
+                    "starting demo data seed"
+                )
 
-                    # 500 gives us a rich demo without making deployment
-                    # unnecessarily slow.
-                    run_seed(
-                        n_customers=500,
-                        wipe=False,
-                    )
+                # Generate a rich production demo dataset.
+                run_seed(
+                    n_customers=500,
+                    wipe=False,
+                )
 
-                    log.info(
-                        "startup: demo data generated successfully"
-                    )
+                log.info(
+                    "startup: demo data generated successfully"
+                )
 
-                    # Convert failed payments, abandoned checkouts and
-                    # past-due subscriptions into recovery opportunities.
-                    changed = refresh_opportunities(seed_db)
+                # Use a fresh database session after seeding.
+                opportunity_db = SessionLocal()
+
+                try:
+                    changed = refresh_opportunities(opportunity_db)
 
                     log.info(
                         "startup: recovery opportunities refreshed",
                         extra={"opportunities_changed": changed},
                     )
+                finally:
+                    opportunity_db.close()
 
-                    log.info(
-                        "startup: DEMO DATA BOOTSTRAP COMPLETE"
-                    )
+                log.info(
+                    "startup: DEMO DATA BOOTSTRAP COMPLETE"
+                )
 
-                else:
-                    log.info(
-                        "startup: demo data already exists — "
-                        "skipping seed",
-                        extra={"customer_count": customer_count},
-                    )
-
-            finally:
-                seed_db.close()
+            else:
+                log.info(
+                    "startup: demo data already exists — "
+                    "skipping seed",
+                    extra={"customer_count": customer_count},
+                )
 
     except Exception as exc:  # noqa: BLE001
         log.error(
