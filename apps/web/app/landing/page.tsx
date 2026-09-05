@@ -145,55 +145,35 @@ const accentBg: Record<string, string> = {
 };
 
 /* ──────────────────────────────────────────────
-   STAT COUNTER — animates up from 0
-   ────────────────────────────────────────────── */
-function StatCounter({ value, prefix = "", suffix = "", duration = 1800 }: {
-  value: number; prefix?: string; suffix?: string; duration?: number;
-}) {
-  const [display, setDisplay] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      observer.disconnect();
-      const start = performance.now();
-      const tick = (now: number) => {
-        const pct = Math.min((now - start) / duration, 1);
-        const ease = 1 - Math.pow(1 - pct, 4);
-        setDisplay(Math.round(ease * value));
-        if (pct < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, { threshold: 0.3 });
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [value, duration]);
-  return <span ref={ref}>{prefix}{display.toLocaleString("en-IN")}{suffix}</span>;
-}
-
-/* ──────────────────────────────────────────────
    SCROLL REVEAL — fade+rise on scroll
+   Lightweight: CSS transition only, no JS animation
    ────────────────────────────────────────────── */
 function Reveal({ children, delay = 0, className = "" }: {
   children: React.ReactNode; delay?: number; className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setVisible(true); observer.disconnect(); }
-    }, { threshold: 0.08 });
+      if (entry.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.05, rootMargin: "0px 0px -20px 0px" });
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
+
   return (
     <div
       ref={ref}
       className={className}
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(28px)",
-        transition: `opacity 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}ms, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
+        transform: visible ? "translateY(0)" : "translateY(14px)",
+        willChange: visible ? "auto" : "opacity, transform",
+        transition: `opacity 0.45s cubic-bezier(0.16,1,0.3,1) ${delay}ms, transform 0.45s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
       }}
     >
       {children}
@@ -710,7 +690,7 @@ export default function LandingPage() {
               04 · Recover
             </span>
             <div className="font-display gradient-text-jade mt-4">
-              <StatCounter value={662000} prefix="₹" /> recovered.
+              ₹6.62L recovered.
             </div>
             <p className="text-base text-ink-300 mt-6 max-w-md mx-auto">
               Revenue that would have silently disappeared. Recovered by PayPilot's autonomous execution engine.
@@ -719,18 +699,15 @@ export default function LandingPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Total Recovered",   value: 662000,  prefix: "₹", suffix: "",   color: "stat-glow-jade",   sub: "Verified payment outcomes" },
-              { label: "Incremental Lift",  value: 414000,  prefix: "₹", suffix: "",   color: "stat-glow-violet", sub: "Above organic 12% baseline" },
-              { label: "Recovery Rate",     value: 342,     prefix: "",  suffix: "/1000", color: "text-ink-0",     sub: "1 in 3 failures recovered" },
-              { label: "Avg Recovery Time", value: 89,      prefix: "",  suffix: "/10h", color: "stat-glow-amber", sub: "From failure to resolution" },
+              { label: "Total Recovered",   display: "₹6.62L",  color: "stat-glow-jade",   sub: "Verified payment outcomes" },
+              { label: "Incremental Lift",  display: "₹4.14L",  color: "stat-glow-violet", sub: "Above organic 12% baseline" },
+              { label: "Recovery Rate",     display: "34.2%",   color: "text-ink-0",        sub: "1 in 3 failures recovered" },
+              { label: "Avg Recovery Time", display: "8.9h",    color: "stat-glow-amber",   sub: "From failure to resolution" },
             ].map((s, i) => (
-              <Reveal key={s.label} delay={i * 80}>
+              <Reveal key={s.label} delay={i * 60}>
                 <div className="card-surface rounded-2xl p-6 text-center space-y-2 card-glow-jade cursor-default">
                   <p className="text-2xs font-mono text-ink-500 uppercase tracking-wider">{s.label}</p>
-                  <p className={`font-mono text-3xl font-black ${s.color}`}>
-                    <StatCounter value={s.value} prefix={s.prefix} suffix="" />
-                    {s.suffix && <span className="text-base opacity-60">{s.suffix}</span>}
-                  </p>
+                  <p className={`font-mono text-3xl font-black ${s.color}`}>{s.display}</p>
                   <p className="text-2xs text-ink-500">{s.sub}</p>
                 </div>
               </Reveal>
